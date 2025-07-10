@@ -17,7 +17,6 @@ BiodiversityASSET is a comprehensive pipeline for extracting, classifying, and a
 - [Key Features](#key-features)
 - [Quick Start](#quick-start)
 - [Processing Pipeline](#processing-pipeline)
-- [Environment Setup](#environment-setup)
 - [Batch Job Management](#batch-job-management)
 - [Prompt Customization](#prompt-customization)
 - [Project Structure](#project-structure)
@@ -147,10 +146,10 @@ python scripts/download_batch_results.py --batch-id <assetization_batch_id>
 ### 📊 Monitoring Jobs
 
 ```bash
-# List all batch jobs with status and timestamps
+# List all batch jobs with LAST-CHECKED status and timestamps
 python scripts/check_batch_status.py --list-jobs
 
-# Check specific job status
+# Check CURRENT status of a specific job
 python scripts/check_batch_status.py --batch-id <batch-id>
 
 # Wait for job completion (polls every 30 seconds)
