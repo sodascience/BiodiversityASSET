@@ -11,13 +11,13 @@ SCORING CRITERIA:
   * Concrete engagement with companies on biodiversity issues
   * Specific project structuring or due diligence activities
   * Measurable financial commitments or allocations
+  * Risk assessment in relation to financial allocation or costs related to biodiversity and nature
 
 - Score 0: Paragraph contains GENERIC references such as:
   * General support for frameworks (TNFD, SBTI) without specific actions
-  * Policy statements or commitments without concrete implementation
-  * Risk assessment or reporting activities without financial actions
+  * Public Policy statements or commitments without concrete implementation
   * General discussions about biodiversity importance
-  * Participation in initiatives without describing specific investments
+  * Participation in initiatives without describing own specific role and actions
 
 ### EXAMPLES:
 **Example 1:**
@@ -45,10 +45,10 @@ Explanation: The paragraph discusses the economic implications of biodiversity l
 **Example 5:**
 Paragraph: The theme "Deforestation and Biodiversity" concerns two parallel and interconnected global crises: climate change and biodiversity loss. The UN Intergovernmental Panel on Climate Change (IPCC) and the Intergovernmental Science-Policy Platform on Biodiversity and Ecosystem Services (IBPES) determined in 2021 that the two areas should be managed together.
 Score: 0
-Explanation: The paragraph discusses the interconnectedness of climate change and biodiversity loss but does not provide any specific actions or investments made by an investor.
+Explanation: The paragraph discusses the interconnectedness of climate change and biodiversity loss but it refer solely to external policy discussions not related to investors.
 
 **Example 6:**
 Paragraph: Global business is responsible for a large part of the loss of biodiversity and financial institutions bear part of the responsibility by owning and financing businesses. 
-All economic activity is, directly or indirectly, dependent on nature's services and resources. The loss of natural resources also entails risks and costs for both companies and investors, and has become a strategic risk management issue alongside climate change.
-Score: 0
-Explanation: The paragraph discusses the responsibility of global business and financial institutions regarding biodiversity loss but does not provide any specific actions or investments made by an investor.
+All economic activity is, directly or indirectly, dependent on nature's services and resources. The loss of natural resources also entails risks and costs for both companies and investors, and has become a strategic risk management issue alongside climate change.We address this by improving data, engage with our clients, and optimize our portfolio.
+Score: 1
+Explanation: The paragraph discusses the responsibility of global business and financial institutions regarding biodiversity loss and aligns to the commitment of investors to address it.

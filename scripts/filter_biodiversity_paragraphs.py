@@ -13,9 +13,18 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipe
 import pandas as pd
 import re
 import os
+import csv 
 import unicodedata
 from pathlib import Path
 from tqdm import tqdm
+from deep_translator import GoogleTranslator
+
+def translate_to_english(text):
+    try:
+        return GoogleTranslator(source='auto', target='en').translate(text)
+    except Exception as e:
+        print(f"Translation error: {e}")
+        return text  # fallback to original
 
 # Define project directories using relative paths
 PROJECT_ROOT = Path(__file__).parent.parent  # Go up from scripts/ to project root
@@ -102,10 +111,11 @@ def classify_with_transformer_and_keywords(paragraphs, pipe, keywords, file_name
     # Add progress bar for processing paragraphs
     with tqdm(total=len(paragraphs), desc="Processing paragraphs", unit="para") as pbar:
         for i, (paragraph, file_name) in enumerate(zip(paragraphs, file_name_column)):
+            translated_paragraph = translate_to_english(paragraph)
             # Try transformer classification if model is available
             if pipe is not None:
                 try:
-                    prediction = pipe(paragraph, padding=True, truncation=True)
+                    prediction = pipe(translated_paragraph, padding=True, truncation=True)
                     confidence = prediction[0]["score"]
                     label = prediction[0]["label"]
                 except Exception as e:
@@ -145,7 +155,10 @@ def save_filtered_paragraphs(filtered_paragraphs, output_path):
     Save filtered paragraphs to a CSV file.
     """
     try:
-        pd.DataFrame(filtered_paragraphs).to_csv(output_path, index=False, encoding='utf-8')
+        df = pd.DataFrame(filtered_paragraphs)
+        df = df.astype(str)
+
+        pd.DataFrame(filtered_paragraphs).to_csv(output_path, index=False, encoding='utf-8',quoting=csv.QUOTE_ALL)
         print(f"Filtered paragraphs saved to: {output_path}")
     except Exception as e:
         print(f"Error saving filtered paragraphs to {output_path}: {e}")
