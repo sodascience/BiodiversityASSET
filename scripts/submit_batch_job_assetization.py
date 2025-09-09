@@ -297,11 +297,6 @@ def parse_arguments():
         default=500,
         help="Maximum tokens for response (default: 500)"
     )
-    parser.add_argument(
-        '--input-file', 
-        type=str, 
-        help='Optional single input file'
-    )
     return parser.parse_args()
 
 def main():
@@ -389,29 +384,26 @@ def main():
         print(f"Error initializing batch processor: {e}")
         return
     
-    # Determine CSV input(s)
-    # Process each CSV file separately. Split each file into chunks of 500 rows. Submit a separate batch for each chunk.Label each job and its metadata by chunk and file name.
-    if args.input_file:
-        input_path = Path(args.input_file)
-        if not input_path.exists():
-            print(f"❌ Error: Input file does not exist: {args.input_file}")
-            return
-        if input_path.suffix != ".csv":
-            print(f"❌ Error: Only .csv files are supported for --input-file")
-            return
-        csv_files = [input_path]
-        print(f"✓ Using single input file: {input_path}")
-    else:
-        if not input_dir.exists():
-            print(f"❌ Error: Input directory {input_dir} does not exist!")
-            return
-        csv_files = list(input_dir.glob("*.csv"))
-        if not csv_files:
-            print(f"No CSV files found in {input_dir}")
-            return
-        print(f"✓ Found {len(csv_files)} CSV files in {input_dir}")
-
+    # Get all CSV files from the input directory
+    csv_files = list(input_dir.glob("*.csv"))
+    
+    if not csv_files:
+        print(f"No CSV files found in {input_dir}")
+        return
+    
+    print(f"Found {len(csv_files)} CSV files to combine and process")
+    
+    # Combine all CSV files into a single DataFrame
+    combined_data = combine_csv_files(csv_files, args.task)
+    
+    if combined_data.empty:
+        print("No valid data to process")
+        return
+    
+    print(f"\nPreparing batch job for {len(combined_data)} paragraphs...")
+    
     try:
+        # Get response schema based on task
         if args.task == "investment_activity_classification":
             response_schema = get_response_schema(InvestmentActivityResponse)
         elif args.task == "assetization_features_scoring":
@@ -419,83 +411,46 @@ def main():
         else:
             print(f"Unknown task: {args.task}")
             return
-
+        
+        # Create output directory for this specific job
         job_output_dir = PROJECT_ROOT / "results" / "batch_jobs" / f"{args.task}_processing"
         job_output_dir.mkdir(parents=True, exist_ok=True)
-
-        MAX_REQUESTS = 500
-        batch_counter = 1
-
-        for csv_file in csv_files:
-            print(f"\n📂 Processing file: {csv_file.name}")
-            df = pd.read_csv(csv_file)
-
-            if "paragraph_text" not in df.columns:
-                print(f"⚠️ Skipping {csv_file.name} (no 'paragraph_text' column)")
-                continue
-
-            df = df.dropna(subset=["paragraph_text"]).copy()
-
-            if args.task == "assetization_features_scoring":
-                if "score" in df.columns:
-                    initial_count = len(df)
-                    df = df[df["score"] == 1].copy()
-                    print(f"  → Filtered to {len(df)} paragraphs with investment activity from {initial_count}")
-                else:
-                    print(f"⚠️ No 'score' column in {csv_file.name}, skipping.")
-                    continue
-
-            if df.empty:
-                print(f"⚠️ No valid rows in {csv_file.name}")
-                continue
-
-            df["source_csv_file"] = csv_file.name
-            total_rows = len(df)
-            num_chunks = (total_rows + MAX_REQUESTS - 1) // MAX_REQUESTS
-
-            for i in range(num_chunks):
-                chunk_df = df.iloc[i * MAX_REQUESTS : (i + 1) * MAX_REQUESTS].copy()
-                chunk_size = len(chunk_df)
-
-                print(f"\n=== Processing chunk {i + 1}/{num_chunks} of {csv_file.name} ({chunk_size} rows) ===")
-                print(f"  - {csv_file.name}: {chunk_size} paragraphs")
-
-                job_name = f"{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}_{csv_file.stem}_chunk{i+1}"
-                input_file = job_output_dir / f"{args.task}_{job_name}_input.jsonl"
-
-                processor.prepare_batch_file(
-                    data=chunk_df,
-                    system_prompt=system_prompt,
-                    user_prompt_template=user_prompt_template,
-                    text_column="paragraph_text",
-                    response_schema=response_schema,
-                    model=args.model,
-                    output_path=input_file,
-                    max_tokens=args.max_tokens,
-                    custom_id_prefix=job_name
-                )
-
-                batch_id = processor.submit_batch(input_file, f"{args.task} {csv_file.stem} chunk {i+1}")
-
-                data_info = {
-                    "total_paragraphs": len(chunk_df),
-                    "input_files_count": 1
-                }
-
-                metadata_file = save_batch_metadata(batch_id, args.task, args, [csv_file], data_info)
-
-                print(f"\n🚀 Batch submitted!")
-                print(f"📋 Batch ID: {batch_id}")
-                print(f"📄 Metadata saved to: {metadata_file}")
-                print(f"🔗 Input file: {input_file}")
-                print(f"💾 Source: {csv_file.name}, Chunk {i + 1}/{num_chunks}")
-                print(f"\n-----------------------------")
-                print(f"Next steps:")
-                print(f"1. Check job status: python scripts/check_batch_status.py --batch-id {batch_id}")
-                print(f"2. Download results:  python scripts/download_batch_results.py --batch-id {batch_id}")
-                
-                batch_counter += 1
-
+        
+        # Prepare batch file
+        job_name = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        input_file = job_output_dir / f"{args.task}_{job_name}_input.jsonl"
+        
+        processor.prepare_batch_file(
+            data=combined_data,
+            system_prompt=system_prompt,
+            user_prompt_template=user_prompt_template,
+            text_column="paragraph_text",
+            response_schema=response_schema,
+            model=args.model,
+            output_path=input_file,
+            max_tokens=args.max_tokens,
+            custom_id_prefix=job_name
+        )
+        
+        # Submit batch job
+        batch_id = processor.submit_batch(input_file, f"BiodiversityASSET {args.task}")
+        
+        # Save metadata for later use
+        data_info = {
+            "total_paragraphs": len(combined_data),
+            "input_files_count": len(csv_files)
+        }
+        
+        metadata_file = save_batch_metadata(batch_id, args.task, args, csv_files, data_info)
+        
+        print(f"\n🚀 Batch job submitted successfully!")
+        print(f"📋 Batch ID: {batch_id}")
+        print(f"📁 Job files saved in: {job_output_dir}")
+        print(f"📄 Metadata saved to: {metadata_file}")
+        print(f"\nNext steps:")
+        print(f"1. Check job status: python scripts/check_batch_status.py --batch-id {batch_id}")
+        print(f"2. Download results when complete: python scripts/download_batch_results.py --batch-id {batch_id}")
+        
     except Exception as e:
         print(f"Error during batch submission: {e}")
         return

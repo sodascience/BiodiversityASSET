@@ -1,2 +1,2 @@
-## Paragraph to evaluate ##
+##Paragraph##
 {text}

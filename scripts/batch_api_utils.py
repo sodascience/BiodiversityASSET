@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 from openai import OpenAI
+from torch import res
 from tqdm import tqdm
 
 
@@ -304,49 +305,73 @@ class BatchAPIProcessor:
             DataFrame with processed results
         """
         print(f"Processing batch results from: {results_file_path}")
-        
+        #print(original_data)
+        #print(original_data.iloc[0])
         results = []
         
+        print(f"Processing batch results from: {results_file_path}")
+        results = []
+ 
+        # Optional: map original (possibly non-contiguous) index -> 0..N-1 position
+        index_to_pos = {idx: pos for pos, idx in enumerate(original_data.index)}
+        use_seq_fallback = False
+        seq_pos = 0  # sequential fallback cursor
+ 
         with open(results_file_path, "r", encoding="utf-8") as f:
             for line in tqdm(f, desc="Processing results"):
                 line = line.strip()
                 if not line:
                     continue
-                
+ 
                 try:
                     result = json.loads(line)
-                    
-                    # Extract custom_id to match with original data
-                    custom_id = result.get("custom_id", "")
-                    row_idx = int(custom_id.split("_")[-1]) if "_" in custom_id else 0
-                    
-                    # Extract response content
-                    response_content = result.get("response", {}).get("body", {}).get("choices", [{}])[0].get("message", {}).get("content", "{}")
-                    
-                    try:
-                        parsed_response = json.loads(response_content)
-                        
-                        # Combine original data with response
-                        if row_idx < len(original_data):
-                            row_data = original_data.iloc[row_idx].to_dict()
-                            row_data.update(parsed_response)
-                            row_data["batch_custom_id"] = custom_id
-                            results.append(row_data)
-                    
-                    except json.JSONDecodeError as e:
-                        print(f"Error parsing response for {custom_id}: {e}")
-                        continue
-                
-                except json.JSONDecodeError as e:
-                    print(f"Error parsing result line: {e}")
+                except json.JSONDecodeError:
                     continue
-        
+ 
+                custom_id = result.get("custom_id", "")
+                # Try to parse JSON content from structured output
+                response_content = (
+                    result.get("response", {})
+                        .get("body", {})
+                        .get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "{}")
+                )
+                try:
+                    parsed_response = json.loads(response_content)
+                except json.JSONDecodeError:
+                    continue
+ 
+                # 1) First try to align by custom_id suffix (original index value)
+                pos = None
+                try:
+                    key = int(custom_id.split("_")[-1])
+                    pos = index_to_pos.get(key, None)
+                except Exception:
+                    pos = None
+ 
+                # 2) If that fails or is out of bounds, fall back to sequential order
+                if pos is None or pos < 0 or pos >= len(original_data):
+                    use_seq_fallback = True
+                    pos = seq_pos
+                    seq_pos += 1
+ 
+                if pos >= len(original_data):
+                    # nothing left to align—stop attempting further merges
+                    break
+ 
+                row_data = original_data.iloc[pos].to_dict()
+                row_data.update(parsed_response)
+                row_data["batch_custom_id"] = custom_id
+                results.append(row_data)
+ 
         results_df = pd.DataFrame(results)
-        
+        if results_df.empty:
+            print("⚠️ Merged results are empty. "
+                f"{'Sequential fallback was used.' if use_seq_fallback else 'No fallback used.'}")
         if output_csv_path:
             results_df.to_csv(output_csv_path, index=False, encoding="utf-8")
             print(f"✅ Results saved to: {output_csv_path}")
-        
         return results_df
     
     def run_complete_batch_pipeline(
