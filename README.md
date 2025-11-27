@@ -310,6 +310,4 @@ If you use BiodiversityASSET in your research, please cite:
 
 This project is developed and maintained by the [ODISSEI Social Data Science (SoDa)](https://odissei-soda.nl/) team.
 
-<img src="img/soda_logo.png" alt="SoDa logo" width="250px"/>
-
 Do you have questions, suggestions, or remarks? File an [issue](https://github.com/sodascience/workshop_llm_data_collection/issues) or feel free to contact [Qixiang Fang](https://github.com/fqixiang) or [Catalina Papari](https://github.com/catalinapapari1).
